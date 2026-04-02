@@ -1,0 +1,117 @@
+# ============================================================================
+# 🔍 CI — Validate Actions & Workflows
+# ============================================================================
+# Ensures all action.yml and workflow files are valid YAML with required fields.
+# Runs on every push and pull request to master.
+# ============================================================================
+
+name: 🔍 Validate Actions
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/actions/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/actions/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  yaml-lint:
+    name: 📋 YAML Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v6
+
+      - name: 📋 Lint YAML files
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .github/
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 200
+                allow-non-breakable-inline-mappings: true
+              truthy:
+                check-keys: false
+              comments:
+                min-spaces-from-content: 1
+              document-start: disable
+              indentation:
+                spaces: 2
+                indent-sequences: consistent
+
+  validate-actions:
+    name: 🔬 Validate Action Structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v6
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: 📦 Install PyYAML
+        run: pip install pyyaml
+
+      - name: 🔬 Validate all action.yml files
+        run: |
+          import yaml, os, sys
+
+          ACTIONS_DIR = ".github/actions"
+          required_fields = ["name", "description", "runs"]
+          errors = []
+          count = 0
+
+          for action_dir in sorted(os.listdir(ACTIONS_DIR)):
+              yml_path = os.path.join(ACTIONS_DIR, action_dir, "action.yml")
+              if not os.path.isfile(yml_path):
+                  continue
+
+              try:
+                  with open(yml_path) as f:
+                      data = yaml.safe_load(f)
+
+                  if not isinstance(data, dict):
+                      errors.append(f"{action_dir}: file is not a valid YAML mapping")
+                      continue
+
+                  missing = [f for f in required_fields if f not in data]
+                  if missing:
+                      errors.append(f"{action_dir}: missing required fields: {', '.join(missing)}")
+                  else:
+                      count += 1
+                      print(f"  ✅ {action_dir}: {data['name']}")
+
+              except yaml.YAMLError as e:
+                  errors.append(f"{action_dir}: YAML parse error: {e}")
+              except Exception as e:
+                  errors.append(f"{action_dir}: {e}")
+
+          print(f"\n✅ {count} action(s) validated successfully")
+
+          if errors:
+              print(f"\n❌ {len(errors)} error(s) found:")
+              for e in errors:
+                  print(f"  ❌ {e}")
+              sys.exit(1)
+        shell: python

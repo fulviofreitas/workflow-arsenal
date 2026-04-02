@@ -1,0 +1,22 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+
+# Node (if commitlint or semantic-release are tested locally)
+node_modules/
+package-lock.json
+
+# Python (if linters are tested locally)
+__pycache__/
+*.pyc
+.venv/
