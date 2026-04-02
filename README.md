@@ -32,8 +32,8 @@
 
 | Workflow | Description | Docs |
 |:---------|:------------|:-----|
-| **docker-build** | Multi-platform Docker builds with native runners and manifest merging | [README](.github/workflows/docker-build.README.md) |
-| **reusable-metrics** | Generate repository metrics SVGs using lowlighter/metrics | [README](.github/workflows/reusable-metrics.README.md) |
+| **docker-build** | Multi-platform Docker builds with native runners and manifest merging | [README](.github/workflows/README.md#-docker-build) |
+| **reusable-metrics** | Generate repository metrics SVGs using lowlighter/metrics | [README](.github/workflows/README.md#-reusable-metrics) |
 
 ---
 
