@@ -56,6 +56,10 @@ inputs:
     description: "Number of required approvals"
     required: false
     default: "1"
+  review-label:
+    description: "Label that requires approval before merge. PRs without this label merge with 0 required approvals."
+    required: false
+    default: "needs-review"
   update-method:
     description: "Method to keep PR up to date with base"
     required: false
@@ -107,11 +111,13 @@ runs:
     # ========================================================================
     # 🤖 Auto-Merge
     # ========================================================================
-    - name: 🏷️ Format blocking labels
+    - name: 🏷️ Format labels and resolve approvals
       id: format-labels
       shell: bash
+      env:
+        GH_TOKEN: ${{ steps.auth.outputs.token }}
       run: |
-        # Transform "wip,do-not-merge,needs-review" into "!wip,!do-not-merge,!needs-review"
+        # Transform "wip,do-not-merge" into "!wip,!do-not-merge"
         BLOCKING="${{ inputs.blocking-labels }}"
         if [[ -n "$BLOCKING" ]]; then
           FORMATTED=$(echo "$BLOCKING" | sed 's/,/,!/g' | sed 's/^/!/')
@@ -119,8 +125,25 @@ runs:
           FORMATTED=""
         fi
         echo "blocking-labels=$FORMATTED" >> $GITHUB_OUTPUT
-        echo "blocking-labels=$FORMATTED"
-        echo "merge-labels=${{ inputs.merge-method }}"
+
+        # Resolve required approvals based on review-label presence
+        REVIEW_LABEL="${{ inputs.review-label }}"
+        REQUIRED_APPROVALS="${{ inputs.required-approvals }}"
+
+        if [[ -n "$REVIEW_LABEL" && "${{ github.event_name }}" == "pull_request"* ]]; then
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          if [[ -n "$PR_NUMBER" ]]; then
+            PR_LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json labels --jq '.labels[].name' 2>/dev/null || true)
+            if echo "$PR_LABELS" | grep -qx "$REVIEW_LABEL"; then
+              echo "🏷️ PR has '$REVIEW_LABEL' label — requiring $REQUIRED_APPROVALS approval(s)"
+            else
+              REQUIRED_APPROVALS="0"
+              echo "🏷️ PR does not have '$REVIEW_LABEL' label — no approvals required"
+            fi
+          fi
+        fi
+
+        echo "required-approvals=$REQUIRED_APPROVALS" >> $GITHUB_OUTPUT
 
     - name: 🤖 Run automerge
       id: automerge
@@ -136,7 +159,7 @@ runs:
         MERGE_DELETE_BRANCH: ${{ inputs.delete-branch }}
         MERGE_RETRIES: "6"
         MERGE_RETRY_SLEEP: "10000"
-        MERGE_REQUIRED_APPROVALS: ${{ inputs.required-approvals }}
+        MERGE_REQUIRED_APPROVALS: ${{ steps.format-labels.outputs.required-approvals }}
         MERGE_ERROR_FAIL: "false"
         # Update configuration
         UPDATE_LABELS: ${{ inputs.merge-labels }}

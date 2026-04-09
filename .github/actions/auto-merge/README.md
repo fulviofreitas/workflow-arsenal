@@ -1,6 +1,15 @@
 # 🤖 Auto-Merge
 
-Automatically merge approved PRs using [pascalgn/automerge-action](https://github.com/pascalgn/automerge-action). Supports GitHub App authentication for merging PRs that modify workflow files.
+Automatically merge PRs using [pascalgn/automerge-action](https://github.com/pascalgn/automerge-action). Supports GitHub App authentication for merging PRs that modify workflow files.
+
+## Conditional Approval Behavior
+
+The action supports skipping approval requirements based on PR labels:
+
+- **PR without `needs-review` label** — merges automatically with **0 approvals** once all required checks pass
+- **PR with `needs-review` label** — requires the configured number of approvals (default: 1) before merging
+
+This is controlled by the `review-label` input. Set it to `""` to disable this behavior and always require approvals.
 
 ## Usage
 
@@ -11,6 +20,16 @@ Automatically merge approved PRs using [pascalgn/automerge-action](https://githu
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
     merge-labels: "automerge"
     merge-method: "squash"
+```
+
+To always require approvals (disable conditional logic):
+
+```yaml
+- uses: fulviofreitas/workflow-arsenal/.github/actions/auto-merge@master
+  with:
+    app-id: ${{ secrets.APP_ID }}
+    app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    review-label: ""
 ```
 
 ## Inputs
@@ -24,7 +43,8 @@ Automatically merge approved PRs using [pascalgn/automerge-action](https://githu
 | `blocking-labels` | No | `wip,do-not-merge` | Labels that block merge (comma-separated) |
 | `merge-method` | No | `squash` | Merge method (`merge`, `squash`, `rebase`) |
 | `delete-branch` | No | `true` | Delete branch after merge |
-| `required-approvals` | No | `1` | Number of required approvals |
+| `required-approvals` | No | `1` | Number of required approvals (when `review-label` is present on PR) |
+| `review-label` | No | `needs-review` | Label that requires approval before merge. PRs without this label merge with 0 approvals. Set to `""` to always require approvals. |
 | `update-method` | No | `merge` | Method to keep PR up to date with base |
 
 ## Outputs
