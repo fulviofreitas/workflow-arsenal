@@ -1,6 +1,6 @@
 # 🎯 Workflow Arsenal
 
-> A centralized collection of 16 production-ready, reusable GitHub Actions and 2 reusable Workflows for CI/CD automation.
+> A centralized collection of production-ready, reusable GitHub Actions and Workflows for CI/CD automation.
 
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/fulviofreitas/workflow-arsenal)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
