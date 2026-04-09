@@ -32,6 +32,14 @@ To always require approvals (disable conditional logic):
     review-label: ""
 ```
 
+## Dependabot Commit Prefix Fix
+
+By default, the action rewrites Dependabot PR titles from `chore(deps):` to `fix(deps):` before merging. This ensures dependency updates (especially security fixes) trigger a patch release via semantic-release.
+
+- **Enabled by default** — set `fix-dependabot-prefix: "false"` to disable
+- Only affects PRs authored by `dependabot[bot]`
+- Rewrites both `chore(deps):` and `chore(deps-dev):` prefixes
+
 ## Inputs
 
 | Input | Required | Default | Description |
@@ -46,6 +54,7 @@ To always require approvals (disable conditional logic):
 | `required-approvals` | No | `1` | Number of required approvals (when `review-label` is present on PR) |
 | `review-label` | No | `needs-review` | Label that requires approval before merge. PRs without this label merge with 0 approvals. Set to `""` to always require approvals. |
 | `update-method` | No | `merge` | Method to keep PR up to date with base |
+| `fix-dependabot-prefix` | No | `true` | Rewrite Dependabot PR titles from `chore(deps)` to `fix(deps)` for semantic-release compatibility |
 
 ## Outputs
 

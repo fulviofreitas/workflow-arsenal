@@ -64,6 +64,10 @@ inputs:
     description: "Method to keep PR up to date with base"
     required: false
     default: "merge"
+  fix-dependabot-prefix:
+    description: "Rewrite Dependabot PR titles from chore(deps) to fix(deps) so security bumps trigger semantic-release"
+    required: false
+    default: "true"
 
 outputs:
   merged:
@@ -144,6 +148,27 @@ runs:
         fi
 
         echo "required-approvals=$REQUIRED_APPROVALS" >> $GITHUB_OUTPUT
+
+    - name: 🔧 Fix Dependabot commit prefix
+      if: inputs.fix-dependabot-prefix == 'true' && github.event.pull_request.user.login == 'dependabot[bot]'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.auth.outputs.token }}
+      run: |
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+        PR_TITLE="${{ github.event.pull_request.title }}"
+
+        if [[ "$PR_TITLE" == chore\(deps\):* ]]; then
+          NEW_TITLE="${PR_TITLE/chore(deps):/fix(deps):}"
+          gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --title "$NEW_TITLE"
+          echo "🔧 Rewrote PR title: $PR_TITLE → $NEW_TITLE"
+        elif [[ "$PR_TITLE" == chore\(deps-dev\):* ]]; then
+          NEW_TITLE="${PR_TITLE/chore(deps-dev):/fix(deps-dev):}"
+          gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --title "$NEW_TITLE"
+          echo "🔧 Rewrote PR title: $PR_TITLE → $NEW_TITLE"
+        else
+          echo "ℹ️ PR title does not start with chore(deps): — no rewrite needed"
+        fi
 
     - name: 🤖 Run automerge
       id: automerge
