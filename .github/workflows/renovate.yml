@@ -1,0 +1,36 @@
+# ============================================================================
+# 🔄 Renovate — Self-Renovation
+# ============================================================================
+# Keeps this repository's own action version references up to date.
+# Uses the renovate composite action from this repo.
+# ============================================================================
+
+name: 🔄 Renovate
+
+on:
+  schedule:
+    - cron: "0 4 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  renovate:
+    name: 🔄 Renovate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v6
+
+      - name: 🔄 Run Renovate
+        uses: fulviofreitas/workflow-arsenal/.github/actions/renovate@master
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
