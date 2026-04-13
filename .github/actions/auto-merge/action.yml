@@ -92,7 +92,7 @@ runs:
     - name: 🔑 Generate GitHub App token
       id: app-token
       if: inputs.app-id != '' && inputs.app-private-key != ''
-      uses: actions/create-github-app-token@v3
+      uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
       with:
         app-id: ${{ inputs.app-id }}
         private-key: ${{ inputs.app-private-key }}
@@ -172,7 +172,7 @@ runs:
 
     - name: 🤖 Run automerge
       id: automerge
-      uses: pascalgn/automerge-action@v0.16.4
+      uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
       env:
         GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
         # Merge configuration

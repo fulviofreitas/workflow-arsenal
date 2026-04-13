@@ -171,14 +171,14 @@ runs:
 
     - name: 📊 Upload SARIF to GitHub Security
       if: inputs.upload-sarif == 'true'
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
       with:
         sarif_file: ${{ inputs.working-directory }}/${{ inputs.sarif-output }}
         category: "semgrep"
       continue-on-error: true
 
     - name: 📤 Upload scan artifacts
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       if: always()
       with:
         name: semgrep-scan-results

@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 🔄 Run Renovate
-        uses: fulviofreitas/workflow-arsenal/.github/actions/renovate@master
+        uses: fulviofreitas/workflow-arsenal/.github/actions/renovate@4d0d414972635cc9fbcd137d0b2837c6f5ccf9e0 # master
         with:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
