@@ -67,7 +67,7 @@ jobs:
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
       - name: 📊 Generate Repository Metrics
-        uses: lowlighter/metrics@latest
+        uses: lowlighter/metrics@v3.34
         with:
           # Repository configuration
           template: ${{ inputs.template }}
