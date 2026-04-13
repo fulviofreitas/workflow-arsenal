@@ -109,7 +109,7 @@ runs:
     # Publish to TestPyPI (when repository-url is specified)
     - name: 📤 Publish to TestPyPI
       if: inputs.dry-run != 'true' && inputs.repository-url != ''
-      uses: pypa/gh-action-pypi-publish@release/v1
+      uses: pypa/gh-action-pypi-publish@v1.14.0
       with:
         repository-url: ${{ inputs.repository-url }}
         skip-existing: ${{ inputs.skip-existing }}
@@ -119,7 +119,7 @@ runs:
     # Publish to PyPI (default, when no repository-url)
     - name: 📤 Publish to PyPI
       if: inputs.dry-run != 'true' && inputs.repository-url == ''
-      uses: pypa/gh-action-pypi-publish@release/v1
+      uses: pypa/gh-action-pypi-publish@v1.14.0
       with:
         skip-existing: ${{ inputs.skip-existing }}
         attestations: ${{ inputs.attestations }}

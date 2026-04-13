@@ -58,7 +58,7 @@ runs:
     # ========================================================================
     - name: 📥 Download cache artifact
       if: inputs.reset-cache != 'true'
-      uses: dawidd6/action-download-artifact@v19
+      uses: dawidd6/action-download-artifact@v20
       continue-on-error: true
       with:
         name: renovate-cache-v1
@@ -98,7 +98,7 @@ runs:
     # 🔄 Run Renovate
     # ========================================================================
     - name: 🔄 Run Renovate
-      uses: renovatebot/github-action@v46.1.7
+      uses: renovatebot/github-action@v46.1.9
       with:
         configurationFile: ${{ inputs.config-file }}
         token: ${{ steps.app-token.outputs.token }}
