@@ -8,7 +8,9 @@
 #       uses: fulviofreitas/workflow-arsenal/.github/workflows/reusable-metrics.yml@master
 #       with:
 #         repo: my-repo-name
-#       secrets: inherit
+#       secrets:
+#         RENOVATE_APP_ID: ${{ secrets.RENOVATE_APP_ID }}
+#         RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
 name: 📊 Repository Metrics (Reusable)
 
@@ -49,6 +51,13 @@ on:
         required: false
         type: boolean
         default: true
+    secrets:
+      RENOVATE_APP_ID:
+        description: 'GitHub App client ID for token generation'
+        required: true
+      RENOVATE_APP_PRIVATE_KEY:
+        description: 'GitHub App private key for token generation'
+        required: true
 
 permissions:
   contents: read
@@ -67,7 +76,7 @@ jobs:
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
       - name: 📊 Generate Repository Metrics
-        uses: lowlighter/metrics@v3.34
+        uses: lowlighter/metrics@65836723097537a54cd8eb90f61839426b4266b6 # v3.34
         with:
           # Repository configuration
           template: ${{ inputs.template }}
