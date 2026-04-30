@@ -34,6 +34,8 @@
 |:---------|:------------|:-----|
 | **docker-build** | Multi-platform Docker builds with native runners and manifest merging | [README](.github/workflows/README.md#-docker-build) |
 | **reusable-metrics** | Generate repository metrics SVGs using lowlighter/metrics | [README](.github/workflows/README.md#-reusable-metrics) |
+| **manifest-bump** | Open a PR in a downstream GitOps repo pinning a new image tag | [README](.github/workflows/README.md#-manifest-bump) |
+| **upstream-fork-sync** | Detect when an upstream repo has advanced and open a sync PR | [README](.github/workflows/README.md#-upstream-fork-sync) |
 
 ---
 

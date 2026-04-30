@@ -1,0 +1,191 @@
+# =============================================================================
+# upstream-fork-sync (reusable)
+# =============================================================================
+# Detects when the upstream of a fork has advanced and opens a PR with a merge
+# commit so the diff is reviewable. Re-runs update the same PR.
+#
+# Caller example:
+#   jobs:
+#     sync:
+#       uses: fulviofreitas/workflow-arsenal/.github/workflows/upstream-fork-sync.yml@master
+#       with:
+#         upstream-repo: CoderLuii/HolyClaude
+#         upstream-branch: master
+#         fork-base-branch: master
+#         pr-labels: upstream-sync,automated
+#         pr-assignees: fulviofreitas
+# =============================================================================
+
+name: upstream-fork-sync
+
+on:
+  workflow_call:
+    inputs:
+      upstream-repo:
+        description: "owner/repo of the upstream"
+        required: true
+        type: string
+      upstream-branch:
+        description: "Branch on upstream to track"
+        required: false
+        type: string
+        default: master
+      fork-base-branch:
+        description: "Branch on the fork to PR into"
+        required: false
+        type: string
+        default: master
+      pr-labels:
+        description: "Comma-separated label list"
+        required: false
+        type: string
+        default: "upstream-sync,automated"
+      pr-assignees:
+        description: "Comma-separated assignee list"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Sync from upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        env:
+          UPSTREAM: ${{ inputs.upstream-repo }}
+          BR: ${{ inputs.upstream-branch }}
+        run: |
+          git remote add upstream "https://github.com/${UPSTREAM}.git" || \
+            git remote set-url upstream "https://github.com/${UPSTREAM}.git"
+          git fetch upstream "${BR}" --tags
+
+      - name: Compare
+        id: cmp
+        env:
+          BR: ${{ inputs.upstream-branch }}
+        run: |
+          set -euo pipefail
+          fork_sha=$(git rev-parse HEAD)
+          upstream_sha=$(git rev-parse "upstream/${BR}")
+          merge_base=$(git merge-base HEAD "upstream/${BR}")
+          ahead=$(git rev-list --count "${merge_base}..upstream/${BR}")
+          {
+            echo "fork_sha=$fork_sha"
+            echo "upstream_sha=$upstream_sha"
+            echo "ahead=$ahead"
+            if [ "$ahead" -gt 0 ]; then echo "changed=true"; else echo "changed=false"; fi
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        id: summary
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          BR: ${{ inputs.upstream-branch }}
+        run: |
+          set -euo pipefail
+          merge_base=$(git merge-base HEAD "upstream/${BR}")
+          commits=$(git log --oneline "${merge_base}..upstream/${BR}")
+          diffstat=$(git diff --stat "${merge_base}..upstream/${BR}")
+          {
+            echo 'commits<<COMMITS_EOF'
+            echo "$commits"
+            echo 'COMMITS_EOF'
+            echo 'diffstat<<DIFF_EOF'
+            echo "$diffstat"
+            echo 'DIFF_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Branch + merge
+        id: branch
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          BR: ${{ inputs.upstream-branch }}
+          UPSTREAM: ${{ inputs.upstream-repo }}
+        run: |
+          set -euo pipefail
+          short=$(echo "${{ steps.cmp.outputs.upstream_sha }}" | cut -c1-7)
+          branch="upstream-sync/${short}"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+          git checkout -B "$branch"
+          if ! git merge --no-ff "upstream/${BR}" \
+               -m "chore(upstream): merge ${UPSTREAM}@${short}"; then
+            echo "::warning::merge conflict — leaving branch in conflict state for human review"
+            git add -A || true
+            git commit --no-edit || true
+          fi
+          git push --force-with-lease origin "$branch"
+
+      - name: Open / update PR
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPSTREAM: ${{ inputs.upstream-repo }}
+          BASE: ${{ inputs.fork-base-branch }}
+          BRANCH: ${{ steps.branch.outputs.name }}
+          LABELS: ${{ inputs.pr-labels }}
+          ASSIGNEES: ${{ inputs.pr-assignees }}
+          AHEAD: ${{ steps.cmp.outputs.ahead }}
+          UP_SHA: ${{ steps.cmp.outputs.upstream_sha }}
+          FK_SHA: ${{ steps.cmp.outputs.fork_sha }}
+          COMMITS: ${{ steps.summary.outputs.commits }}
+          DIFFSTAT: ${{ steps.summary.outputs.diffstat }}
+        run: |
+          set -euo pipefail
+          short=$(echo "$UP_SHA" | cut -c1-7)
+          title="chore(upstream): sync ${UPSTREAM}@${short}"
+          body=$(mktemp)
+          {
+            echo "## Upstream sync"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Upstream | \`${UPSTREAM}\` |"
+            echo "| Upstream HEAD | \`${UP_SHA}\` |"
+            echo "| Fork HEAD | \`${FK_SHA}\` |"
+            echo "| Commits ahead | ${AHEAD} |"
+            echo
+            echo "### Commits"
+            echo
+            echo '```'
+            echo "$COMMITS"
+            echo '```'
+            echo
+            echo "### Files changed"
+            echo
+            echo '```'
+            echo "$DIFFSTAT"
+            echo '```'
+            echo
+            echo "<sub>Generated by \`fulviofreitas/workflow-arsenal/.github/workflows/upstream-fork-sync.yml\`.</sub>"
+          } > "$body"
+
+          existing=$(gh pr list --state open --head "$BRANCH" --json number --jq '.[0].number' || echo "")
+          create_args=(--base "$BASE" --head "$BRANCH" --title "$title" --body-file "$body")
+          IFS=',' read -ra label_arr <<< "$LABELS"
+          for l in "${label_arr[@]}"; do [ -n "$l" ] && create_args+=(--label "$l"); done
+          if [ -n "$ASSIGNEES" ]; then
+            IFS=',' read -ra a_arr <<< "$ASSIGNEES"
+            for a in "${a_arr[@]}"; do [ -n "$a" ] && create_args+=(--assignee "$a"); done
+          fi
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$title" --body-file "$body"
+          else
+            gh pr create "${create_args[@]}"
+          fi
