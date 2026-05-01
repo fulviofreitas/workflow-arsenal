@@ -55,7 +55,12 @@ on:
         type: string
         default: ""
       annotations:
-        description: "Image annotations"
+        description: "Image manifest annotations (visible via `oras manifest fetch` / registry UIs, not via `docker inspect`)"
+        required: false
+        type: string
+        default: ""
+      labels:
+        description: "Additional image-config labels (visible via `docker inspect`); merged with metadata-action's auto-generated org.opencontainers.image.* set"
         required: false
         type: string
         default: ""
@@ -118,6 +123,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.get_tag.outputs.tag }}
             type=sha,prefix=
             type=ref,event=pr
+          labels: ${{ inputs.labels }}
 
   # ==========================================================================
   # Build AMD64 on native x86_64 runner
