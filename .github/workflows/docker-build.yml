@@ -165,7 +165,7 @@ jobs:
           cache-from: |
             type=gha,scope=${{ github.ref_name }}-amd64
             type=gha,scope=master-amd64
-          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-amd64
+          cache-to: type=gha,mode=min,scope=${{ github.ref_name }}-amd64
           provenance: ${{ inputs.generate-provenance && 'mode=min' || 'false' }}
           sbom: ${{ inputs.generate-sbom }}
 
@@ -208,7 +208,7 @@ jobs:
           cache-from: |
             type=gha,scope=${{ github.ref_name }}-arm64
             type=gha,scope=master-arm64
-          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-arm64
+          cache-to: type=gha,mode=min,scope=${{ github.ref_name }}-arm64
           provenance: ${{ inputs.generate-provenance && 'mode=min' || 'false' }}
           sbom: ${{ inputs.generate-sbom }}
 
@@ -348,7 +348,7 @@ jobs:
           cache-from: |
             type=gha,scope=${{ github.ref_name }}
             type=gha,scope=master
-          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}
+          cache-to: type=gha,mode=min,scope=${{ github.ref_name }}
 
       - name: 📊 Generate build summary
         run: |
