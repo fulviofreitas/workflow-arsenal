@@ -136,14 +136,6 @@ runs:
         provenance: ${{ inputs.generate-provenance == 'true' && 'mode=min' || 'false' }}
         sbom: ${{ inputs.generate-sbom }}
 
-    - name: 🔏 Generate attestation
-      if: inputs.push == 'true' && inputs.generate-provenance == 'true'
-      uses: actions/attest-build-provenance@v4
-      with:
-        subject-name: ${{ inputs.image-name }}
-        subject-digest: ${{ steps.build.outputs.digest }}
-        push-to-registry: true
-
     - name: 🔧 Install cosign
       if: inputs.push == 'true'
       uses: sigstore/cosign-installer@v3
@@ -179,6 +171,19 @@ runs:
       run: |
         set -euo pipefail
         cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${IMAGE}@${DIGEST}"
+
+    # attest-build-provenance runs last and is best-effort: the GitHub REST
+    # attestations API rejects requests from user-owned private repos with
+    # "Feature not available for user-owned private repositories". Cosign is
+    # the primary supply-chain claim; provenance is a bonus SLSA artifact.
+    - name: 🔏 Generate attestation
+      if: inputs.push == 'true' && inputs.generate-provenance == 'true'
+      uses: actions/attest-build-provenance@v4
+      continue-on-error: true
+      with:
+        subject-name: ${{ inputs.image-name }}
+        subject-digest: ${{ steps.build.outputs.digest }}
+        push-to-registry: true
 
     - name: 📊 Generate build summary
       if: always()
