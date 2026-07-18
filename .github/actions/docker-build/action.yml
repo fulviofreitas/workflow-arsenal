@@ -139,11 +139,46 @@ runs:
     - name: 🔏 Generate attestation
       if: inputs.push == 'true' && inputs.generate-provenance == 'true'
       uses: actions/attest-build-provenance@v4
-      continue-on-error: true
       with:
         subject-name: ${{ inputs.image-name }}
         subject-digest: ${{ steps.build.outputs.digest }}
         push-to-registry: true
+
+    - name: 🔧 Install cosign
+      if: inputs.push == 'true'
+      uses: sigstore/cosign-installer@v3
+      with:
+        cosign-release: 'v2.4.1'
+
+    - name: 🔏 Sign image with Cosign (keyless via OIDC)
+      if: inputs.push == 'true' && steps.build.outputs.digest != ''
+      env:
+        DIGEST: ${{ steps.build.outputs.digest }}
+        IMAGE: ${{ inputs.image-name }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "🔏 Signing ${IMAGE}@${DIGEST}"
+        cosign sign --yes "${IMAGE}@${DIGEST}"
+
+    - name: 📋 Generate SPDX SBOM
+      if: inputs.push == 'true' && inputs.generate-sbom == 'true' && steps.build.outputs.digest != ''
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ inputs.image-name }}@${{ steps.build.outputs.digest }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+        upload-artifact: false
+
+    - name: 📋 Attest SBOM with Cosign
+      if: inputs.push == 'true' && inputs.generate-sbom == 'true' && steps.build.outputs.digest != ''
+      env:
+        DIGEST: ${{ steps.build.outputs.digest }}
+        IMAGE: ${{ inputs.image-name }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${IMAGE}@${DIGEST}"
 
     - name: 📊 Generate build summary
       if: always()

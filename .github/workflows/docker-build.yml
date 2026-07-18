@@ -276,11 +276,55 @@ jobs:
       - name: 🔏 Generate attestation
         if: inputs.generate-provenance
         uses: actions/attest-build-provenance@v4
-        continue-on-error: true
         with:
           subject-name: ${{ inputs.image-name }}
           subject-digest: ${{ steps.inspect.outputs.digest }}
           push-to-registry: true
+
+      - name: 🔧 Install cosign
+        if: inputs.push
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: 🔏 Sign image with Cosign (keyless via OIDC)
+        if: inputs.push && steps.inspect.outputs.digest != ''
+        env:
+          DIGEST: ${{ steps.inspect.outputs.digest }}
+          IMAGE: ${{ inputs.image-name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "🔏 Signing ${IMAGE}@${DIGEST}"
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+          echo "✅ Signed. Verify with:"
+          echo "  cosign verify ${IMAGE}@${DIGEST} \\"
+          echo "    --certificate-identity-regexp='https://github.com/fulviofreitas/workflow-arsenal/\\.github/workflows/docker-build\\.yml@refs/heads/.*' \\"
+          echo "    --certificate-oidc-issuer='https://token.actions.githubusercontent.com'"
+
+      - name: 📋 Generate SPDX SBOM
+        if: inputs.push && inputs.generate-sbom && steps.inspect.outputs.digest != ''
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ inputs.image-name }}@${{ steps.inspect.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - name: 📋 Attest SBOM with Cosign
+        if: inputs.push && inputs.generate-sbom && steps.inspect.outputs.digest != ''
+        env:
+          DIGEST: ${{ steps.inspect.outputs.digest }}
+          IMAGE: ${{ inputs.image-name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "📋 Attesting SBOM for ${IMAGE}@${DIGEST}"
+          cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${IMAGE}@${DIGEST}"
+          echo "✅ SBOM attested. Verify with:"
+          echo "  cosign verify-attestation ${IMAGE}@${DIGEST} --type spdxjson \\"
+          echo "    --certificate-identity-regexp='https://github.com/fulviofreitas/workflow-arsenal/\\.github/workflows/docker-build\\.yml@refs/heads/.*' \\"
+          echo "    --certificate-oidc-issuer='https://token.actions.githubusercontent.com'"
 
       - name: 📊 Generate build summary
         run: |
