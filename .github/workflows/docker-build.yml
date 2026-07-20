@@ -254,17 +254,26 @@ jobs:
 
       - name: 🔍 Inspect manifest
         id: inspect
+        shell: bash
         run: |
-          # Get the latest tag digest
+          set -euo pipefail
           LATEST_TAG="${{ inputs.image-name }}:latest"
-          # Use raw format and parse with grep
-          DIGEST=$(docker buildx imagetools inspect "${LATEST_TAG}" --raw 2>/dev/null | jq -r '.manifests[0].digest // empty' || echo "")
-          if [ -z "$DIGEST" ]; then
-            # Fallback: get digest from inspect output
-            DIGEST=$(docker buildx imagetools inspect "${LATEST_TAG}" 2>&1 | grep -oP 'Digest:\s+\K\S+' | head -1 || echo "")
-          fi
+          # For a multi-arch manifest LIST, the parent (list) digest is the
+          # sha256 of the raw manifest bytes. `docker buildx imagetools inspect
+          # --raw` outputs those bytes verbatim, so sha256sum gives the parent
+          # digest. This is what Cosign MUST sign — argocd-image-updater and
+          # kubelet resolve `:latest` to the same parent digest, and Kyverno
+          # verifies the signature at that digest at admission time.
+          #
+          # NEVER use `jq '.manifests[0].digest'` here — that returns the FIRST
+          # CHILD manifest digest (per-arch), a different sha256. Signing the
+          # child leaves the parent unsigned; every downstream verifier fails
+          # with "no signatures found" (root cause of 6-of-8 image failures
+          # observed 2026-07-20 during Phase 4 pre-flight).
+          DIGEST=$(docker buildx imagetools inspect "${LATEST_TAG}" --raw \
+            | sha256sum | awk '{print "sha256:"$1}')
           echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
-          echo "📋 Multi-arch digest: ${DIGEST:-unknown}"
+          echo "📋 Multi-arch parent digest: ${DIGEST}"
 
       - name: 🧹 Cleanup temp tags
         continue-on-error: true
