@@ -294,6 +294,23 @@ jobs:
           echo "    --certificate-identity-regexp='https://github.com/fulviofreitas/workflow-arsenal/\\.github/workflows/docker-build\\.yml@refs/heads/.*' \\"
           echo "    --certificate-oidc-issuer='https://token.actions.githubusercontent.com'"
 
+      # Syft caches every layer to disk while scanning. Large images (e.g.
+      # HolyClaude ~6GB) exhaust the ~14GB free on ubuntu-latest and syft
+      # aborts with "no space left on device". Freeing runner tool caches
+      # (dotnet/android/haskell/etc — ~30GB) before the scan avoids this
+      # without slowing down small-image builds meaningfully.
+      - name: 🧹 Free disk space for SBOM scan
+        if: inputs.push && inputs.generate-sbom && steps.inspect.outputs.digest != ''
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false     # slow, marginal gain
+          swap-storage: false
+          docker-images: false      # keep buildx cache image
+
       - name: 📋 Generate SPDX SBOM
         if: inputs.push && inputs.generate-sbom && steps.inspect.outputs.digest != ''
         uses: anchore/sbom-action@v0
