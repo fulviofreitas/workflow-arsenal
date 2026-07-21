@@ -138,7 +138,7 @@ runs:
 
     - name: 🔧 Install cosign
       if: inputs.push == 'true'
-      uses: sigstore/cosign-installer@v3
+      uses: sigstore/cosign-installer@v4.1.2
       with:
         cosign-release: 'v2.4.1'
 
