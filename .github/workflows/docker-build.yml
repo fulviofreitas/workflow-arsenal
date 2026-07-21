@@ -331,6 +331,10 @@ jobs:
 
       - name: 📋 Attest SBOM with Cosign
         if: inputs.push && inputs.generate-sbom && steps.inspect.outputs.digest != ''
+        # Rekor log entries can fail transiently (network timeout, brief outage).
+        # Cosign sign (primary supply-chain claim) already succeeded above; SBOM
+        # attestation is a bonus artifact so we tolerate transient Rekor failures.
+        continue-on-error: true
         env:
           DIGEST: ${{ steps.inspect.outputs.digest }}
           IMAGE: ${{ inputs.image-name }}
