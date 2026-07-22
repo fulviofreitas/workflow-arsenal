@@ -140,7 +140,7 @@ runs:
       if: inputs.push == 'true'
       uses: sigstore/cosign-installer@v4.1.2
       with:
-        cosign-release: 'v2.4.1'
+        cosign-release: 'v2.6.4'
 
     - name: 🔏 Sign image with Cosign (keyless via OIDC)
       if: inputs.push == 'true' && steps.build.outputs.digest != ''
