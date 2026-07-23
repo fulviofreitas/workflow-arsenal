@@ -46,10 +46,10 @@ on:
         type: string
         default: "ghcr.io/fulviofreitas/agentic-runner:latest"
       model:
-        description: "GitHub Models model identifier (see `gh models list`)."
+        description: "GitHub Models model identifier (see `gh models list`). Must include provider prefix, e.g. openai/gpt-4o-mini."
         required: false
         type: string
-        default: "gpt-4o-mini"
+        default: "openai/gpt-4o-mini"
       timeout_minutes:
         description: "Job timeout."
         required: false
