@@ -103,12 +103,10 @@ jobs:
       - name: Configure git safe.directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Ensure gh models extension
+      - name: Sanity check tooling
         run: |
-          if ! gh models --help >/dev/null 2>&1; then
-            gh extension install github/gh-models
-          fi
-          gh models --help >/dev/null
+          curl --version | head -1
+          jq --version
 
       - name: Materialise issue content
         # Env-var substitution (not shell interpolation) protects against
@@ -218,14 +216,42 @@ jobs:
           echo "--- prompt size: $(wc -c < /tmp/triage/prompt.md) bytes ---"
 
       - name: Run model
+        # Hit GitHub Models' OpenAI-compatible inference endpoint directly.
+        # `gh models run` requires a TTY or specific stdin handling that is
+        # unreliable inside container jobs; the REST call is deterministic.
+        # Auth: workflow GITHUB_TOKEN with `models: read` permission (granted
+        # by the caller).
         run: |
           set -o pipefail
-          # gh models reads the prompt from stdin. Use --system-prompt to
-          # emphasise the "JSON only" constraint on top of the user prompt.
-          gh models run "$MODEL" < /tmp/triage/prompt.md > /tmp/triage/response.raw 2> /tmp/triage/model-stderr.log \
-            || { echo "gh models run failed"; tail -50 /tmp/triage/model-stderr.log; exit 1; }
+          jq -n --arg model "$MODEL" --rawfile p /tmp/triage/prompt.md \
+            '{model:$model, messages:[{role:"user",content:$p}], temperature:0.1}' \
+            > /tmp/triage/req.json
+
+          HTTP_CODE=$(curl -sS -o /tmp/triage/resp.json -w "%{http_code}" \
+            -X POST https://models.github.ai/inference/chat/completions \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/triage/req.json)
+
+          echo "--- HTTP status: $HTTP_CODE ---"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Models API returned $HTTP_CODE"
+            cat /tmp/triage/resp.json
+            exit 1
+          fi
+
+          # Extract the assistant's message content.
+          jq -r '.choices[0].message.content // empty' /tmp/triage/resp.json \
+            > /tmp/triage/response.raw
+          if [ ! -s /tmp/triage/response.raw ]; then
+            echo "::error::Model returned empty content"
+            jq . /tmp/triage/resp.json
+            exit 1
+          fi
           echo "--- raw response (first 500 chars) ---"
           head -c 500 /tmp/triage/response.raw
+          echo
 
       - name: Parse response and enforce safety caps
         id: parse
