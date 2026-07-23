@@ -103,10 +103,12 @@ jobs:
       - name: Configure git safe.directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Sanity check tooling
+      - name: Ensure gh models extension
         run: |
-          curl --version | head -1
-          jq --version
+          if ! gh models --help >/dev/null 2>&1; then
+            gh extension install github/gh-models
+          fi
+          gh models --help >/dev/null
 
       - name: Materialise issue content
         # Env-var substitution (not shell interpolation) protects against
@@ -216,37 +218,18 @@ jobs:
           echo "--- prompt size: $(wc -c < /tmp/triage/prompt.md) bytes ---"
 
       - name: Run model
-        # Hit GitHub Models' OpenAI-compatible inference endpoint directly.
-        # `gh models run` requires a TTY or specific stdin handling that is
-        # unreliable inside container jobs; the REST call is deterministic.
-        # Auth: workflow GITHUB_TOKEN with `models: read` permission (granted
-        # by the caller).
+        # Passing the prompt as a positional argument (not stdin) avoids
+        # `gh models run` falling into interactive REPL mode inside container
+        # jobs. The prompt is a few KB — well under Linux ARG_MAX (~2MB).
         run: |
           set -o pipefail
-          jq -n --arg model "$MODEL" --rawfile p /tmp/triage/prompt.md \
-            '{model:$model, messages:[{role:"user",content:$p}], temperature:0.1}' \
-            > /tmp/triage/req.json
-
-          HTTP_CODE=$(curl -sS -o /tmp/triage/resp.json -w "%{http_code}" \
-            -X POST https://models.github.ai/inference/chat/completions \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/json" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/triage/req.json)
-
-          echo "--- HTTP status: $HTTP_CODE ---"
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Models API returned $HTTP_CODE"
-            cat /tmp/triage/resp.json
-            exit 1
-          fi
-
-          # Extract the assistant's message content.
-          jq -r '.choices[0].message.content // empty' /tmp/triage/resp.json \
-            > /tmp/triage/response.raw
+          PROMPT="$(cat /tmp/triage/prompt.md)"
+          gh models run "$MODEL" "$PROMPT" > /tmp/triage/response.raw 2> /tmp/triage/model-stderr.log \
+            || { echo "gh models run failed"; tail -50 /tmp/triage/model-stderr.log; exit 1; }
           if [ ! -s /tmp/triage/response.raw ]; then
             echo "::error::Model returned empty content"
-            jq . /tmp/triage/resp.json
+            echo "--- stderr ---"
+            cat /tmp/triage/model-stderr.log
             exit 1
           fi
           echo "--- raw response (first 500 chars) ---"
