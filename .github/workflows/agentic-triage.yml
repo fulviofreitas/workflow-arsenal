@@ -67,6 +67,9 @@ jobs:
   triage:
     if: github.event.issue.user.type != 'Bot'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     container:
       image: ${{ inputs.runner_image }}
       credentials:
