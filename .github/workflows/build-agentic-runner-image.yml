@@ -1,0 +1,69 @@
+# Builds and publishes ghcr.io/${owner}/agentic-runner, the shared container
+# image consumed by the agentic-triage and agentic-draft-fix reusable
+# workflows in this repo.
+#
+# The image is deliberately generic (no repo-specific deps). Callers install
+# their own pip/npm deps at workflow run time — this keeps the image usable
+# by any repo without maintaining a per-repo variant.
+
+name: Build Agentic Runner Image
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/docker/agentic-runner.Dockerfile
+      - .github/workflows/build-agentic-runner-image.yml
+  schedule:
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-agentic-runner-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/agentic-runner
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=
+          labels: |
+            org.opencontainers.image.title=agentic-runner
+            org.opencontainers.image.description=Shared runner image for agentic-triage and agentic-draft-fix reusable workflows.
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: .github/docker/agentic-runner.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=agentic-runner
+          cache-to: type=gha,scope=agentic-runner,mode=max
