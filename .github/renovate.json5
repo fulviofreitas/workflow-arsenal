@@ -16,6 +16,15 @@
       ],
       "automerge": true,
       "pinDigests": false
+    },
+    {
+      // Pin sigstore/cosign at v2.x until ff-k8s Kyverno is on a version
+      // that reliably verifies cosign v3 bundle-format artifacts. Current
+      // ff-k8s cluster runs Kyverno v1.18.2, exposed to upstream SIGSEGV
+      // regression on v3 verify (kyverno/kyverno#16435, fail-closed).
+      // Remove this rule once Kyverno is on a fixed version.
+      "matchPackageNames": ["sigstore/cosign"],
+      "allowedVersions": "<3.0.0"
     }
   ]
 }
