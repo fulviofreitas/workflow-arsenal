@@ -420,6 +420,11 @@ jobs:
           echo "--- allowed tools ---"
           echo "$ALLOWED_TOOLS"
           echo "--- claude run (stream-json to /tmp/claude-events.jsonl, summary streamed below) ---"
+          _jq_preview='select(.type=="assistant" or .type=="user" or .type=="result")'
+          _jq_preview+=' | (.type + " :: " + (try (.message.content[0].text'
+          _jq_preview+=' // .message.content[0].name'
+          _jq_preview+=' // .message.content[0].input.command'
+          _jq_preview+=' // .result // "(no preview)") | tostring | .[0:200]))'
           cat /tmp/prompt/full.md | claude \
             --print \
             --model "$MODEL" \
@@ -429,7 +434,7 @@ jobs:
             --verbose \
             2> /tmp/claude-stderr.log \
             | tee /tmp/claude-events.jsonl \
-            | jq -r --unbuffered 'select(.type=="assistant" or .type=="user" or .type=="result") | (.type + " :: " + (try (.message.content[0].text // .message.content[0].name // .message.content[0].input.command // .result // "(no preview)") | tostring | .[0:200]))' || true  # yamllint disable-line rule:line-length
+            | jq -r --unbuffered "$_jq_preview" || true
           echo "--- claude exit code: ${PIPESTATUS[1]} ---"
           echo "--- claude stderr (last 50 lines) ---"
           tail -50 /tmp/claude-stderr.log || true
@@ -503,7 +508,9 @@ jobs:
             echo
             echo "---"
             echo
-            echo "_This is a DRAFT pull request opened automatically by the draft-fix workflow in response to the \`try-fix\` label on issue #${ISSUE_NUMBER}. A maintainer will review before anything ships._"  # yamllint disable-line rule:line-length
+            echo "_This is a DRAFT pull request opened automatically by the" \
+              "draft-fix workflow in response to the \`try-fix\` label" \
+              "on issue #${ISSUE_NUMBER}. A maintainer will review before anything ships._"
             echo
             echo "_[Workflow run](${RUN_URL}) · [Issue #${ISSUE_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER})_"
           } > /tmp/pr-body.md
@@ -531,7 +538,10 @@ jobs:
             echo "<details><summary>Tool calls</summary>"
             echo
             echo '```'
-            jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | "\(.name): \(.input | tostring | .[0:140])"' /tmp/claude-events.jsonl 2>/dev/null | head -60 || echo "(no events)"  # yamllint disable-line rule:line-length
+            _f='select(.type=="assistant") | .message.content[]?'
+            _f+=' | select(.type=="tool_use")'
+            _f+=' | "\(.name): \(.input | tostring | .[0:140])"'
+            jq -r "$_f" /tmp/claude-events.jsonl 2>/dev/null | head -60 || echo "(no events)"
             echo '```'
             echo
             echo "</details>"
