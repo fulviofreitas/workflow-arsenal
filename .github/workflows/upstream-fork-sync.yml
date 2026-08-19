@@ -59,6 +59,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   sync:
@@ -153,7 +154,7 @@ jobs:
       - name: Ensure PR labels exist
         if: steps.cmp.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LABELS: ${{ inputs.pr-labels }}
         run: |
           IFS=',' read -ra label_arr <<< "$LABELS"
