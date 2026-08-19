@@ -17,6 +17,11 @@
 #       secrets:
 #         app-id: ${{ secrets.RENOVATE_APP_ID }}
 #         app-private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+#
+# Caller permissions required:
+#   contents: write       — push sync branch
+#   pull-requests: write  — open / update PR
+#   issues: write         — create labels that don't exist yet
 # =============================================================================
 
 name: upstream-fork-sync
@@ -59,7 +64,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write
 
 jobs:
   sync:
