@@ -17,11 +17,6 @@
 #       secrets:
 #         app-id: ${{ secrets.RENOVATE_APP_ID }}
 #         app-private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
-#
-# Caller permissions required:
-#   contents: write       — push sync branch
-#   pull-requests: write  — open / update PR
-#   issues: write         — create labels (only if Issues are enabled)
 # =============================================================================
 
 name: upstream-fork-sync
@@ -44,10 +39,10 @@ on:
         type: string
         default: master
       pr-labels:
-        description: "Comma-separated label list"
+        description: "Newline-separated label list"
         required: false
         type: string
-        default: "upstream-sync,automated"
+        default: "upstream-sync\nautomated"
       pr-assignees:
         description: "Comma-separated assignee list"
         required: false
@@ -55,11 +50,11 @@ on:
         default: ""
     secrets:
       app-id:
-        description: "GitHub App ID (needed to push branches with workflow file changes)"
-        required: false
+        description: "GitHub App ID for token generation"
+        required: true
       app-private-key:
         description: "GitHub App private key"
-        required: false
+        required: true
 
 permissions:
   contents: write
@@ -73,20 +68,16 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@v2
-        continue-on-error: true
+        uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.app-id }}
+          client-id: ${{ secrets.app-id }}
           private-key: ${{ secrets.app-private-key }}
 
-      # Use app token for checkout so git push can write workflow files.
-      # All GitHub API calls use GITHUB_TOKEN (REST endpoints work; GraphQL
-      # createPullRequest is blocked for reusable-workflow tokens).
       - name: Checkout fork
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Configure git
         run: |
@@ -138,8 +129,7 @@ jobs:
             echo 'DIFF_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Branch + merge
-        id: branch
+      - name: Merge upstream into sync branch
         if: steps.cmp.outputs.changed == 'true'
         env:
           BR: ${{ inputs.upstream-branch }}
@@ -147,88 +137,44 @@ jobs:
         run: |
           set -euo pipefail
           short=$(echo "${{ steps.cmp.outputs.upstream_sha }}" | cut -c1-7)
-          branch="upstream-sync/${short}"
-          echo "name=$branch" >> "$GITHUB_OUTPUT"
-          git checkout -B "$branch"
+          git checkout -B "upstream-sync/${short}"
           if ! git merge --no-ff "upstream/${BR}" \
                -m "chore(upstream): merge ${UPSTREAM}@${short}"; then
             echo "::warning::merge conflict — leaving branch in conflict state for human review"
             git add -A || true
             git commit --no-edit || true
           fi
-          git push --force-with-lease origin "$branch"
 
-      - name: Open / update PR
-        id: pr
+      - name: Create / update PR
         if: steps.cmp.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UPSTREAM: ${{ inputs.upstream-repo }}
-          BASE: ${{ inputs.fork-base-branch }}
-          BRANCH: ${{ steps.branch.outputs.name }}
-          LABELS: ${{ inputs.pr-labels }}
-          ASSIGNEES: ${{ inputs.pr-assignees }}
-          AHEAD: ${{ steps.cmp.outputs.ahead }}
-          UP_SHA: ${{ steps.cmp.outputs.upstream_sha }}
-          FK_SHA: ${{ steps.cmp.outputs.fork_sha }}
-          COMMITS: ${{ steps.summary.outputs.commits }}
-          DIFFSTAT: ${{ steps.summary.outputs.diffstat }}
-        run: |
-          set -euo pipefail
-          REPO="${GITHUB_REPOSITORY}"
-          short=$(echo "$UP_SHA" | cut -c1-7)
-          title="chore(upstream): sync ${UPSTREAM}@${short}"
-          body=$(cat <<BODY
-          ## Upstream sync
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: upstream-sync/${{ steps.cmp.outputs.upstream_sha && format('{0}', steps.cmp.outputs.upstream_sha) }}
+          base: ${{ inputs.fork-base-branch }}
+          title: "chore(upstream): sync ${{ inputs.upstream-repo }}@${{ steps.cmp.outputs.upstream_sha && steps.cmp.outputs.upstream_sha[:7] }}"
+          labels: ${{ inputs.pr-labels }}
+          assignees: ${{ inputs.pr-assignees }}
+          body: |
+            ## Upstream sync
 
-          | | |
-          |---|---|
-          | Upstream | \`${UPSTREAM}\` |
-          | Upstream HEAD | \`${UP_SHA}\` |
-          | Fork HEAD | \`${FK_SHA}\` |
-          | Commits ahead | ${AHEAD} |
+            | | |
+            |---|---|
+            | Upstream | `${{ inputs.upstream-repo }}` |
+            | Upstream HEAD | `${{ steps.cmp.outputs.upstream_sha }}` |
+            | Fork HEAD | `${{ steps.cmp.outputs.fork_sha }}` |
+            | Commits ahead | ${{ steps.cmp.outputs.ahead }} |
 
-          ### Commits
+            ### Commits
 
-          \`\`\`
-          ${COMMITS}
-          \`\`\`
+            ```
+            ${{ steps.summary.outputs.commits }}
+            ```
 
-          ### Files changed
+            ### Files changed
 
-          \`\`\`
-          ${DIFFSTAT}
-          \`\`\`
+            ```
+            ${{ steps.summary.outputs.diffstat }}
+            ```
 
-          <sub>Generated by \`fulviofreitas/workflow-arsenal/.github/workflows/upstream-fork-sync.yml\`.</sub>
-          BODY
-          )
-
-          # Check for an existing open PR for this branch (REST API)
-          existing=$(gh api "repos/${REPO}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:${BRANCH}" \
-            --jq '.[0].number // empty')
-
-          if [ -n "$existing" ]; then
-            gh api "repos/${REPO}/pulls/${existing}" -X PATCH \
-              -f title="$title" \
-              -f body="$body" \
-              --jq '.number'
-            echo "number=$existing" >> "$GITHUB_OUTPUT"
-          else
-            pr_number=$(gh api "repos/${REPO}/pulls" -X POST \
-              -f title="$title" \
-              -f head="$BRANCH" \
-              -f base="$BASE" \
-              -f body="$body" \
-              --jq '.number')
-            echo "number=$pr_number" >> "$GITHUB_OUTPUT"
-          fi
-
-          # Apply assignees (REST, no labels — repo may have Issues disabled)
-          if [ -n "$ASSIGNEES" ]; then
-            IFS=',' read -ra a_arr <<< "$ASSIGNEES"
-            assignees_json=$(printf '%s\n' "${a_arr[@]}" | jq -R . | jq -s .)
-            pr_num=$(cat "$GITHUB_OUTPUT" | grep '^number=' | cut -d= -f2)
-            gh api "repos/${REPO}/issues/${pr_num}/assignees" -X POST \
-              --input <(echo "{\"assignees\": ${assignees_json}}") || true
-          fi
+            <sub>Generated by `fulviofreitas/workflow-arsenal/.github/workflows/upstream-fork-sync.yml`.</sub>
