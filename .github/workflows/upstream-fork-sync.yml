@@ -150,6 +150,18 @@ jobs:
           fi
           git push --force-with-lease origin "$branch"
 
+      - name: Ensure PR labels exist
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          LABELS: ${{ inputs.pr-labels }}
+        run: |
+          IFS=',' read -ra label_arr <<< "$LABELS"
+          for l in "${label_arr[@]}"; do
+            [ -z "$l" ] && continue
+            gh label create "$l" --color "0075ca" --force 2>/dev/null || true
+          done
+
       - name: Open / update PR
         if: steps.cmp.outputs.changed == 'true'
         env:
