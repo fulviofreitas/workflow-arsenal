@@ -79,6 +79,9 @@ jobs:
           app-id: ${{ secrets.app-id }}
           private-key: ${{ secrets.app-private-key }}
 
+      # Use app token for checkout so git credentials allow pushing workflow files.
+      # The app token is ONLY used for the git push step (embedded in remote URL
+      # by actions/checkout). All GitHub API calls use GITHUB_TOKEN.
       - name: Checkout fork
         uses: actions/checkout@v7
         with:
@@ -159,7 +162,7 @@ jobs:
         id: pr
         if: steps.cmp.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPSTREAM: ${{ inputs.upstream-repo }}
           BASE: ${{ inputs.fork-base-branch }}
           BRANCH: ${{ steps.branch.outputs.name }}
