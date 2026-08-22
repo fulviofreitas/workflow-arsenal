@@ -74,7 +74,12 @@ jobs:
         run: |
           git remote add upstream "https://github.com/${UPSTREAM}.git" || \
             git remote set-url upstream "https://github.com/${UPSTREAM}.git"
-          git fetch upstream "${BR}" --tags
+          # --no-tags: only the branch ref is used below: git rev-parse/merge-base/log
+          # all operate on "upstream/${BR}", never on a tag. Fetching tags additionally
+          # fails outright whenever upstream has re-pointed a tag we already have
+          # ("would clobber existing tag"), aborting the whole sync before it can compare
+          # branches or open a PR.
+          git fetch upstream "${BR}" --no-tags
 
       - name: Compare
         id: cmp
