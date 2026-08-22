@@ -151,10 +151,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LABELS: ${{ inputs.pr-labels }}
         run: |
+          # gh defaults to the remote literally named "upstream" as the base repo
+          # when both "origin" and "upstream" remotes exist, so this MUST pin
+          # --repo explicitly — otherwise it tries (and fails) to create labels
+          # on the upstream repo instead of this one.
           IFS=',' read -ra label_arr <<< "$LABELS"
           for l in "${label_arr[@]}"; do
             [ -z "$l" ] && continue
-            gh label create "$l" --color "0075ca" --force
+            gh label create "$l" --repo "$GITHUB_REPOSITORY" --color "0075ca" --force
           done
 
       - name: Open / update PR
