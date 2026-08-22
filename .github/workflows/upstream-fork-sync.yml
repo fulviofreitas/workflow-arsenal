@@ -5,6 +5,10 @@
 # commit so the diff is reviewable. Re-runs update the same PR.
 #
 # Caller example:
+#   permissions:
+#     contents: write       — push sync branch
+#     pull-requests: write  — open / update PR
+#     issues: write         — create labels that don't exist yet
 #   jobs:
 #     sync:
 #       uses: fulviofreitas/workflow-arsenal/.github/workflows/upstream-fork-sync.yml@master
@@ -14,6 +18,10 @@
 #         fork-base-branch: master
 #         pr-labels: upstream-sync,automated
 #         pr-assignees: fulviofreitas
+#
+# A reusable workflow's own `permissions:` block can only narrow what the
+# caller grants, never add to it — declaring issues:write here (instead of
+# in the caller) causes a startup_failure. The caller must grant it.
 # =============================================================================
 
 name: upstream-fork-sync
@@ -136,6 +144,18 @@ jobs:
             git commit --no-edit || true
           fi
           git push --force-with-lease origin "$branch"
+
+      - name: Ensure PR labels exist
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LABELS: ${{ inputs.pr-labels }}
+        run: |
+          IFS=',' read -ra label_arr <<< "$LABELS"
+          for l in "${label_arr[@]}"; do
+            [ -z "$l" ] && continue
+            gh label create "$l" --color "0075ca" --force
+          done
 
       - name: Open / update PR
         if: steps.cmp.outputs.changed == 'true'
