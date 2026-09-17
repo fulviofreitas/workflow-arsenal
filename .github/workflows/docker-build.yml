@@ -310,7 +310,7 @@ jobs:
       # without slowing down small-image builds meaningfully.
       - name: 🧹 Free disk space for SBOM scan
         if: inputs.push && inputs.generate-sbom && steps.inspect.outputs.digest != ''
-        uses: jlumbroso/free-disk-space@v1.3.2
+        uses: jlumbroso/free-disk-space@v2.0.0
         with:
           tool-cache: true
           android: true
