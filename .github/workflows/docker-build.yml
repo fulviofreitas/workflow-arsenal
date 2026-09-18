@@ -130,7 +130,7 @@ jobs:
   # ==========================================================================
   build-amd64:
     name: 🏗️ Build AMD64
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: prepare
     outputs:
       digest: ${{ steps.build.outputs.digest }}
@@ -172,7 +172,7 @@ jobs:
   # ==========================================================================
   build-arm64:
     name: 🏗️ Build ARM64
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     needs: prepare
     outputs:
       digest: ${{ steps.build.outputs.digest }}
