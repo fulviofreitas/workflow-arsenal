@@ -1,6 +1,6 @@
 # Builds and publishes ghcr.io/${owner}/agentic-runner, the shared container
-# image consumed by the agentic-triage and agentic-draft-fix reusable
-# workflows in this repo.
+# image consumed by the agentic-draft-fix reusable
+# workflow in this repo.
 #
 # The image is deliberately generic (no repo-specific deps). Callers install
 # their own pip/npm deps at workflow run time — this keeps the image usable
@@ -53,7 +53,7 @@ jobs:
             type=sha,prefix=
           labels: |
             org.opencontainers.image.title=agentic-runner
-            org.opencontainers.image.description=Shared runner image for agentic-triage and agentic-draft-fix reusable workflows.
+            org.opencontainers.image.description=Shared runner image for the agentic-draft-fix reusable workflow.
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push

@@ -32,7 +32,6 @@
 
 | Workflow | Description | Docs |
 |:---------|:------------|:-----|
-| **agentic-triage** | Auto-label + acknowledge new issues via an LLM, App-authored writes | [README](.github/workflows/README.md#-agentic-triage) |
 | **agentic-draft-fix** | Draft a fix PR via Claude Code when a `try-fix` label is applied | [README](.github/workflows/README.md#-agentic-draft-fix) |
 | **docker-build** | Multi-platform Docker builds with native runners and manifest merging | [README](.github/workflows/README.md#-docker-build) |
 | **reusable-metrics** | Generate repository metrics SVGs using lowlighter/metrics | [README](.github/workflows/README.md#-reusable-metrics) |

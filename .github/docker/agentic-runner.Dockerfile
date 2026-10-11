@@ -1,5 +1,5 @@
-# Shared runner image for the agentic-triage and agentic-draft-fix reusable
-# workflows in this repo. Consumed via the `container:` key.
+# Shared runner image for the agentic-draft-fix reusable workflow in this
+# repo. Consumed via the `container:` key.
 #
 # Contains ONLY the language toolchains and CLIs. Repo-specific dependencies
 # (pip/npm packages from the caller's pyproject.toml or package.json) are
@@ -35,12 +35,6 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
 # Claude Code CLI — the agent runtime that agentic-draft-fix invokes.
 RUN npm install -g --no-audit --no-fund @anthropic-ai/claude-code \
     && claude --version
-
-# GitHub Copilot CLI extension — the agent runtime that agentic-triage invokes.
-# Installed as a gh extension so `gh copilot` is available on PATH.
-# Extension install requires an authenticated gh session at build time; since
-# we cannot authenticate here, we defer install to the runtime workflow step.
-# The extension is small (~10MB) and installs in a few seconds.
 
 # actions/checkout writes to /github/workspace by default in container jobs.
 WORKDIR /github/workspace
