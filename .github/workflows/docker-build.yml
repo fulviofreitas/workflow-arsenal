@@ -84,7 +84,7 @@ on:
         value: ${{ jobs.merge.outputs.digest }}
       tags:
         description: "Image tags"
-        value: ${{ jobs.build-amd64.outputs.tags }}
+        value: ${{ jobs.prepare.outputs.tags }}
 
 jobs:
   # ==========================================================================
@@ -132,6 +132,7 @@ jobs:
     name: 🏗️ Build AMD64
     runs-on: ubuntu-26.04
     needs: prepare
+    if: inputs.push
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       tags: ${{ needs.prepare.outputs.tags }}
@@ -174,6 +175,7 @@ jobs:
     name: 🏗️ Build ARM64
     runs-on: ubuntu-26.04-arm
     needs: prepare
+    if: inputs.push
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
