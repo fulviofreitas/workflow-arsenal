@@ -27,7 +27,7 @@
       "allowedVersions": "<3.0.0"
     },
     {
-      "description": "Runner image bumps (ubuntu-24.04 → 26.04) are deliberate upgrades — see ff-k8s docs/plans/ubuntu-latest-runner-migration-plan.md",
+      "description": "Runner image bumps (ubuntu-24.04 → 26.04) are deliberate upgrades — see ff-k8s docs/archive/plans/ubuntu-latest-runner-migration-plan.md",
       "matchDatasources": ["github-runners"],
       "automerge": false,
       "labels": ["dependencies", "renovate", "runner-image"] // deliberately no "automerge" label
