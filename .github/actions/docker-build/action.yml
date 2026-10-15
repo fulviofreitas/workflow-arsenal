@@ -156,6 +156,10 @@ runs:
     - name: 📋 Generate SPDX SBOM
       if: inputs.push == 'true' && inputs.generate-sbom == 'true' && steps.build.outputs.digest != ''
       uses: anchore/sbom-action@v0
+      env:
+        # ubuntu-26.04 mounts /tmp as a ~4 GB tmpfs (runner-images#14777);
+        # syft stages the image tarball + layer cache under TMPDIR.
+        TMPDIR: ${{ runner.temp }}
       with:
         image: ${{ inputs.image-name }}@${{ steps.build.outputs.digest }}
         format: spdx-json
