@@ -92,7 +92,7 @@ jobs:
   # ==========================================================================
   prepare:
     name: 📋 Prepare
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       version-tag: ${{ steps.get_tag.outputs.tag }}
       tags: ${{ steps.meta.outputs.tags }}
@@ -215,7 +215,7 @@ jobs:
   # ==========================================================================
   merge:
     name: 🔀 Merge Manifests
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [prepare, build-amd64, build-arm64]
     if: inputs.push
     outputs:
@@ -405,7 +405,7 @@ jobs:
   # ==========================================================================
   build-pr:
     name: 🏗️ Build (PR)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ !inputs.push }}
     needs: prepare
     steps:
