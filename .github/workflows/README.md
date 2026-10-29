@@ -150,8 +150,10 @@ jobs:
 ### How It Works
 
 1. **Build** — AMD64 and ARM64 images built in parallel on native runners
-2. **Merge** — Manifest list created combining both architectures
-3. **Attest** — SBOM and provenance attestations generated and attached
+2. **Merge** — Manifest list created combining both architectures, under a per-commit staging tag (`build-<sha>`) only
+3. **Sign** — the manifest-list digest is signed with Cosign (keyless OIDC)
+4. **Promote** — only after signing are the published tags (`latest`, semver, short-sha) pointed at the signed digest (`crane tag`, digest-verified). Tag watchers such as argocd-image-updater therefore never see an unsigned digest; if signing fails, no published tag moves
+5. **Attest** — SBOM and provenance attestations generated and attached
 
 ---
 

@@ -231,35 +231,39 @@ jobs:
           username: ${{ inputs.registry-username }}
           password: ${{ secrets.registry-password }}
 
-      - name: 🔀 Create multi-arch manifest
+      - name: 🔀 Create multi-arch manifest (staging tag only)
         run: |
-          # Parse tags and create manifests for each
-          TAGS="${{ needs.prepare.outputs.tags }}"
+          # The index is assembled ONCE, under a per-commit STAGING tag that no
+          # consumer watches. The real tags (`latest`, semver, short-sha, …) are
+          # NOT written here — they are promoted to the already-signed digest by
+          # the "Promote signed digest" step below, after `cosign sign`.
+          #
+          # Why: argocd-image-updater watches `:latest` and resolves its digest
+          # the moment the tag moves. When `:latest` was written here, before
+          # signing, the updater committed an unsigned digest (orca, ff-k8s
+          # commit e5b3bdac, 2026-10-29: bump at 04:14:49Z, signature at
+          # 04:15:07Z), Kyverno admitted the Deployment 1s before the signature
+          # existed, and the Deployment-scoped PolicyReport fossilised as
+          # "no signatures found" (KyvernoResourceNonCompliant).
+          STAGING_TAG="${{ inputs.image-name }}:build-${{ github.sha }}"
           AMD64_TAG="${{ inputs.image-name }}:amd64-${{ github.sha }}"
           ARM64_TAG="${{ inputs.image-name }}:arm64-${{ github.sha }}"
 
           echo "📦 Source images:"
           echo "  - ${AMD64_TAG}"
           echo "  - ${ARM64_TAG}"
-          echo ""
-
-          # Create manifest for each tag
-          echo "$TAGS" | while IFS= read -r tag; do
-            if [ -n "$tag" ]; then
-              echo "🔀 Creating manifest for: ${tag}"
-              docker buildx imagetools create \
-                --tag "${tag}" \
-                "${AMD64_TAG}" \
-                "${ARM64_TAG}"
-            fi
-          done
+          echo "🔀 Creating staging manifest: ${STAGING_TAG}"
+          docker buildx imagetools create \
+            --tag "${STAGING_TAG}" \
+            "${AMD64_TAG}" \
+            "${ARM64_TAG}"
 
       - name: 🔍 Inspect manifest
         id: inspect
         shell: bash
         run: |
           set -euo pipefail
-          LATEST_TAG="${{ inputs.image-name }}:latest"
+          STAGING_TAG="${{ inputs.image-name }}:build-${{ github.sha }}"
           # For a multi-arch manifest LIST, the parent (list) digest is the
           # sha256 of the raw manifest bytes. `docker buildx imagetools inspect
           # --raw` outputs those bytes verbatim, so sha256sum gives the parent
@@ -272,7 +276,7 @@ jobs:
           # child leaves the parent unsigned; every downstream verifier fails
           # with "no signatures found" (root cause of 6-of-8 image failures
           # observed 2026-07-20 during Phase 4 pre-flight).
-          DIGEST=$(docker buildx imagetools inspect "${LATEST_TAG}" --raw \
+          DIGEST=$(docker buildx imagetools inspect "${STAGING_TAG}" --raw \
             | sha256sum | awk '{print "sha256:"$1}')
           echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
           echo "📋 Multi-arch parent digest: ${DIGEST}"
@@ -304,6 +308,43 @@ jobs:
           echo "  cosign verify ${IMAGE}@${DIGEST} \\"
           echo "    --certificate-identity-regexp='https://github.com/fulviofreitas/workflow-arsenal/\\.github/workflows/docker-build\\.yml@refs/heads/.*' \\"
           echo "    --certificate-oidc-issuer='https://token.actions.githubusercontent.com'"
+
+      - name: 🔧 Install crane
+        if: inputs.push && steps.inspect.outputs.digest != ''
+        uses: imjasonh/setup-crane@v0.7
+        with:
+          version: v0.22.1
+
+      # Only now — with the signature already in the registry — do the watched
+      # tags move. `crane tag` re-PUTs the exact manifest bytes under each tag,
+      # so the digest is preserved by construction. NOT `buildx imagetools
+      # create --tag X image@digest`: its platform filter may rebuild the index
+      # when it finds referrer attestations, yielding a different (unsigned)
+      # digest. The post-check fails the run if any tag ever disagrees.
+      #
+      # If signing fails, this step never runs and no public tag moves:
+      # deliberately fail-closed — an unsigned build is never offered to
+      # argocd-image-updater or to anyone pulling `:latest`.
+      - name: 🏷️ Promote signed digest to tags
+        if: inputs.push && steps.inspect.outputs.digest != ''
+        env:
+          DIGEST: ${{ steps.inspect.outputs.digest }}
+          IMAGE: ${{ inputs.image-name }}
+          TAGS: ${{ needs.prepare.outputs.tags }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            name="${tag##*:}"
+            echo "🏷️ ${IMAGE}:${name} -> ${DIGEST}"
+            crane tag "${IMAGE}@${DIGEST}" "${name}"
+            got=$(crane digest "${IMAGE}:${name}")
+            if [ "${got}" != "${DIGEST}" ]; then
+              echo "::error::${IMAGE}:${name} resolved to ${got}, expected signed ${DIGEST}"
+              exit 1
+            fi
+          done <<< "${TAGS}"
 
       # Syft caches every layer to disk while scanning. Large images (e.g.
       # HolyClaude ~6GB) exhaust the ~14GB free on ubuntu-latest and syft
