@@ -36,6 +36,7 @@
 | **docker-build** | Multi-platform Docker builds with native runners and manifest merging | [README](.github/workflows/README.md#-docker-build) |
 | **reusable-metrics** | Generate repository metrics SVGs using lowlighter/metrics | [README](.github/workflows/README.md#-reusable-metrics) |
 | **upstream-fork-sync** | Detect when an upstream repo has advanced and open a sync PR | [README](.github/workflows/README.md#-upstream-fork-sync) |
+| **zizmor** | Audit a repo's workflows and actions for injection, dangerous triggers and unpinned actions | [README](.github/workflows/README.md#-zizmor) |
 
 ---
 

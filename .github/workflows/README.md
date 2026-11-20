@@ -8,6 +8,7 @@
 - [Docker Build](#-docker-build)
 - [Reusable Metrics](#-reusable-metrics)
 - [Upstream Fork Sync](#-upstream-fork-sync)
+- [zizmor](#-zizmor)
 
 ---
 
@@ -237,3 +238,53 @@ jobs:
 | `fork-base-branch` | No | `master` | Branch to PR into |
 | `pr-labels` | No | `upstream-sync,automated` | Labels |
 | `pr-assignees` | No | `""` | Assignees |
+
+---
+
+## 🌈 zizmor
+
+**File:** [`zizmor.yml`](zizmor.yml)
+
+Static security audit of the calling repo's own workflows and composite actions with [zizmor](https://docs.zizmor.sh): template/script injection, dangerous triggers (`pull_request_target`, `workflow_run`), credential persistence, unpinned actions, over-broad permissions and GitHub App tokens.
+
+### Usage — public repo (findings to the Security tab)
+
+```yaml
+jobs:
+  zizmor:
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: fulviofreitas/workflow-arsenal/.github/workflows/zizmor.yml@master
+    with:
+      advanced-security: true
+```
+
+### Usage — private repo without GHAS (findings in the log)
+
+```yaml
+jobs:
+  zizmor:
+    permissions:
+      contents: read
+    uses: fulviofreitas/workflow-arsenal/.github/workflows/zizmor.yml@master
+    with:
+      fail-on-findings: false   # report-only until the backlog is clean, then drop this line
+```
+
+### Inputs
+
+| Input | Required | Default | Description |
+|:------|:---------|:--------|:------------|
+| `advanced-security` | No | `false` | Upload SARIF to code scanning. Free on public repos; private repos need GHAS. Never fails the job. |
+| `fail-on-findings` | No | `true` | Fail on findings at/above the thresholds. Ignored when `advanced-security` is `true`. |
+| `min-severity` | No | `medium` | `unknown`, `informational`, `low`, `medium`, `high` |
+| `min-confidence` | No | `medium` | `unknown`, `low`, `medium`, `high` |
+| `persona` | No | `regular` | `regular`, `pedantic`, `auditor` |
+| `config` | No | `""` | Path to a `zizmor.yml` (rule ignores, pinning policy). Empty uses zizmor's own discovery. |
+
+### Notes
+
+- The caller job must grant the permissions shown — a called workflow can never exceed its caller's token. `security-events: write` and `actions: read` are only used with `advanced-security: true`.
+- Suppress a reviewed false positive inline with `# zizmor: ignore[<audit>]` on the flagged line, with a short justification.
