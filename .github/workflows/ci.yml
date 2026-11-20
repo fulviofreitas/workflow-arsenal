@@ -28,6 +28,18 @@ permissions:
   contents: read
 
 jobs:
+  zizmor:
+    name: 🌈 zizmor
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: ./.github/workflows/zizmor.yml
+    with:
+      # Public repo: findings go to the Security tab instead of blocking CI,
+      # while the existing backlog (mostly unpinned-uses) is worked down.
+      advanced-security: true
+
   yaml-lint:
     name: 📋 YAML Lint
     runs-on: ubuntu-latest

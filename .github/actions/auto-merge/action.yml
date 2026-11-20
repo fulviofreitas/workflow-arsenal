@@ -100,12 +100,18 @@ runs:
     - name: 🔐 Resolve authentication token
       id: auth
       shell: bash
+      # Every ${{ }} value reaches the scripts in this action via env, never by
+      # splicing it into the script text (zizmor: template-injection).
+      env:
+        APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        INPUT_TOKEN: ${{ inputs.github-token }}
       run: |
-        if [[ -n "${{ steps.app-token.outputs.token }}" ]]; then
-          echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+        if [[ -n "$APP_TOKEN" ]]; then
+          echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
           echo "🔑 Using GitHub App token"
-        elif [[ -n "${{ inputs.github-token }}" ]]; then
-          echo "token=${{ inputs.github-token }}" >> $GITHUB_OUTPUT
+        elif [[ -n "$INPUT_TOKEN" ]]; then
+          echo "::add-mask::$INPUT_TOKEN"
+          echo "token=$INPUT_TOKEN" >> "$GITHUB_OUTPUT"
           echo "🔑 Using provided GitHub token"
         else
           echo "::error::No authentication provided. Set either app-id/app-private-key or github-token."
@@ -120,24 +126,25 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ steps.auth.outputs.token }}
+        BLOCKING: ${{ inputs.blocking-labels }}
+        REVIEW_LABEL: ${{ inputs.review-label }}
+        REQUIRED_APPROVALS: ${{ inputs.required-approvals }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
       run: |
         # Transform "wip,do-not-merge" into "!wip,!do-not-merge"
-        BLOCKING="${{ inputs.blocking-labels }}"
         if [[ -n "$BLOCKING" ]]; then
           FORMATTED=$(echo "$BLOCKING" | sed 's/,/,!/g' | sed 's/^/!/')
         else
           FORMATTED=""
         fi
-        echo "blocking-labels=$FORMATTED" >> $GITHUB_OUTPUT
+        echo "blocking-labels=$FORMATTED" >> "$GITHUB_OUTPUT"
 
         # Resolve required approvals based on review-label presence
-        REVIEW_LABEL="${{ inputs.review-label }}"
-        REQUIRED_APPROVALS="${{ inputs.required-approvals }}"
-
-        if [[ -n "$REVIEW_LABEL" && "${{ github.event_name }}" == "pull_request"* ]]; then
-          PR_NUMBER="${{ github.event.pull_request.number }}"
+        if [[ -n "$REVIEW_LABEL" && "$EVENT_NAME" == "pull_request"* ]]; then
           if [[ -n "$PR_NUMBER" ]]; then
-            PR_LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json labels --jq '.labels[].name' 2>/dev/null || true)
+            PR_LABELS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels --jq '.labels[].name' 2>/dev/null || true)
             if echo "$PR_LABELS" | grep -qx "$REVIEW_LABEL"; then
               echo "🏷️ PR has '$REVIEW_LABEL' label — requiring $REQUIRED_APPROVALS approval(s)"
             else
@@ -147,24 +154,26 @@ runs:
           fi
         fi
 
-        echo "required-approvals=$REQUIRED_APPROVALS" >> $GITHUB_OUTPUT
+        echo "required-approvals=$REQUIRED_APPROVALS" >> "$GITHUB_OUTPUT"
 
     - name: 🔧 Fix Dependabot commit prefix
       if: inputs.fix-dependabot-prefix == 'true' && github.event.pull_request.user.login == 'dependabot[bot]'
       shell: bash
       env:
         GH_TOKEN: ${{ steps.auth.outputs.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        # The PR title is attacker-controllable text: it must only ever be read
+        # from the environment, never expanded into the script body.
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        REPO: ${{ github.repository }}
       run: |
-        PR_NUMBER="${{ github.event.pull_request.number }}"
-        PR_TITLE="${{ github.event.pull_request.title }}"
-
         if [[ "$PR_TITLE" == chore\(deps\):* ]]; then
           NEW_TITLE="${PR_TITLE/chore(deps):/fix(deps):}"
-          gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --title "$NEW_TITLE"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --title "$NEW_TITLE"
           echo "🔧 Rewrote PR title: $PR_TITLE → $NEW_TITLE"
         elif [[ "$PR_TITLE" == chore\(deps-dev\):* ]]; then
           NEW_TITLE="${PR_TITLE/chore(deps-dev):/fix(deps-dev):}"
-          gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --title "$NEW_TITLE"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --title "$NEW_TITLE"
           echo "🔧 Rewrote PR title: $PR_TITLE → $NEW_TITLE"
         else
           echo "ℹ️ PR title does not start with chore(deps): — no rewrite needed"
@@ -193,10 +202,10 @@ runs:
     - name: 📝 Generate summary
       if: always()
       shell: bash
+      env:
+        RESULT: ${{ steps.automerge.outputs.mergeResult }}
+        PR_NUMBER: ${{ steps.automerge.outputs.pullRequestNumber }}
       run: |
-        RESULT="${{ steps.automerge.outputs.mergeResult }}"
-        PR_NUMBER="${{ steps.automerge.outputs.pullRequestNumber }}"
-
         cat >> $GITHUB_STEP_SUMMARY << EOF
         ## 🤖 Auto-Merge Summary
 

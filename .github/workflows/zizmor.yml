@@ -1,0 +1,87 @@
+# ============================================================================
+# 🌈 Reusable zizmor — GitHub Actions security audit
+# ============================================================================
+# Static analysis of a repo's own workflows and composite actions with zizmor
+# (https://docs.zizmor.sh): template/script injection, dangerous triggers
+# (pull_request_target, workflow_run), credential persistence, unpinned
+# actions, over-broad permissions and GitHub App tokens.
+#
+# Two output modes:
+#   - advanced-security: true  → SARIF uploaded to the Security tab (code
+#     scanning). Free on public repos; private repos need GitHub Advanced
+#     Security. The job never fails on findings in this mode — triage in the
+#     Security tab.
+#   - advanced-security: false → findings printed to the log; the job fails
+#     on any finding at/above the thresholds unless fail-on-findings: false.
+#
+# The caller job must grant the permissions below — a called workflow can
+# never exceed its caller's token:
+#
+#   jobs:
+#     zizmor:
+#       permissions:
+#         contents: read
+#         security-events: write   # only needed with advanced-security: true
+#         actions: read            # only needed with advanced-security: true
+#       uses: fulviofreitas/workflow-arsenal/.github/workflows/zizmor.yml@master
+# ============================================================================
+
+name: 🌈 zizmor
+
+on:
+  workflow_call:
+    inputs:
+      advanced-security:
+        description: "Upload SARIF to code scanning (public repos, or private repos with GHAS)"
+        type: boolean
+        default: false
+      fail-on-findings:
+        description: "Fail the job on findings (ignored when advanced-security is true)"
+        type: boolean
+        default: true
+      min-severity:
+        description: "Lowest severity reported: unknown, informational, low, medium, high"
+        type: string
+        default: "medium"
+      min-confidence:
+        description: "Lowest confidence reported: unknown, low, medium, high"
+        type: string
+        default: "medium"
+      persona:
+        description: "Audit persona: regular, pedantic, auditor"
+        type: string
+        default: "regular"
+      config:
+        description: "Path to a zizmor.yml config (rule ignores, pinning policy). Empty = zizmor's discovery (.github/zizmor.yml or zizmor.yml)."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: 🌈 zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: 🌈 Run zizmor
+        uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        # Report-only mode: keep the findings in the log, don't block the PR.
+        continue-on-error: ${{ !inputs.advanced-security && !inputs.fail-on-findings }}
+        with:
+          advanced-security: ${{ inputs.advanced-security }}
+          min-severity: ${{ inputs.min-severity }}
+          min-confidence: ${{ inputs.min-confidence }}
+          persona: ${{ inputs.persona }}
+          config: ${{ inputs.config }}
