@@ -140,7 +140,11 @@ runs:
       if: inputs.push == 'true'
       uses: sigstore/cosign-installer@v4.1.3
       with:
-        cosign-release: 'v2.6.5'
+        # cosign v3 (sigstore bundle as an OCI referrer; on GHCR a sha256-<digest>
+        # fallback tag, no .sig tag). Verified 2026-11-20 against ff-k8s Kyverno
+        # v1.20.0 ImageValidatingPolicy (ff-k8s docs/operations/image-signing.md).
+        # Older Kyverno (<=1.19) cannot read it: re-test before any Kyverno downgrade.
+        cosign-release: 'v3.1.4'
 
     - name: 🔏 Sign image with Cosign (keyless via OIDC)
       if: inputs.push == 'true' && steps.build.outputs.digest != ''
