@@ -61,6 +61,8 @@ runs:
         private-key: ${{ inputs.app-private-key }}
         owner: ${{ inputs.owner }}
         repositories: ${{ inputs.target-repo }}
+        # POST /repos/{owner}/{repo}/dispatches needs contents: write.
+        permission-contents: write
 
     # ========================================================================
     # 🔔 Trigger Downstream

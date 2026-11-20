@@ -96,6 +96,16 @@ runs:
       with:
         client-id: ${{ inputs.app-id }}
         private-key: ${{ inputs.app-private-key }}
+        # Least privilege instead of the App's full installation scope:
+        #   contents       write - merge, update branch, delete head branch
+        #   pull-requests  write - read PR/labels/reviews, rewrite title
+        #   workflows      write - merge/update PRs touching .github/workflows
+        # pascalgn/automerge-action reads labels from the PR object and
+        # readiness from mergeable_state, so checks/statuses/issues are
+        # not needed.
+        permission-contents: write
+        permission-pull-requests: write
+        permission-workflows: write
 
     - name: 🔐 Resolve authentication token
       id: auth

@@ -223,6 +223,8 @@ jobs:
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ steps.context_name.outputs.name }}
+          # Read-only clone of the context repo.
+          permission-contents: read
 
       - name: Clone and install the project's AI context
         env:
@@ -478,6 +480,10 @@ jobs:
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
+          # Push the fix branch + open the draft PR. No workflows: write --
+          # protected paths (.github/workflows) are reverted above.
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Push and open draft PR
         if: steps.changes.outputs.has_changes == 'true'
