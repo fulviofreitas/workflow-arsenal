@@ -65,7 +65,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout fork
-        uses: actions/checkout@v7
+        # Credentials kept on purpose: the job later runs `git push origin`, which needs the persisted token.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 # zizmor: ignore[artipacked]
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}

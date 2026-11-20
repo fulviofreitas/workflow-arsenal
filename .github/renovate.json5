@@ -1,7 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    // Keep every `uses:` SHA-pinned (`@<sha> # vX.Y.Z`) and bump the
+    // digest together with the version comment.
+    "helpers:pinGitHubActionDigests"
   ],
   "enabledManagers": [
     "github-actions"
@@ -14,8 +17,7 @@
       "matchManagers": [
         "github-actions"
       ],
-      "automerge": true,
-      "pinDigests": false
+      "automerge": true
     },
     {
       "description": "Runner image bumps (ubuntu-24.04 → 26.04) are deliberate upgrades — see ff-k8s docs/archive/plans/ubuntu-latest-runner-migration-plan.md",

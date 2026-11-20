@@ -32,7 +32,7 @@ runs:
   steps:
     - name: 🔄 Sync wiki
       id: sync
-      uses: Andrew-Chen-Wang/github-wiki-action@v5
+      uses: Andrew-Chen-Wang/github-wiki-action@1bbb4280446f9630e8e21a18012cbacf3b0f992e # v5
       with:
         path: ${{ inputs.wiki-path }}
         ignore: ${{ inputs.ignore-file }}

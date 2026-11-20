@@ -92,10 +92,20 @@ runs:
     - name: 🔑 Generate GitHub App token
       id: app-token
       if: inputs.app-id != '' && inputs.app-private-key != ''
-      uses: actions/create-github-app-token@v3
+      uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
       with:
         client-id: ${{ inputs.app-id }}
         private-key: ${{ inputs.app-private-key }}
+        # Least privilege instead of the App's full installation scope:
+        #   contents       write - merge, update branch, delete head branch
+        #   pull-requests  write - read PR/labels/reviews, rewrite title
+        #   workflows      write - merge/update PRs touching .github/workflows
+        # pascalgn/automerge-action reads labels from the PR object and
+        # readiness from mergeable_state, so checks/statuses/issues are
+        # not needed.
+        permission-contents: write
+        permission-pull-requests: write
+        permission-workflows: write
 
     - name: 🔐 Resolve authentication token
       id: auth
@@ -181,7 +191,7 @@ runs:
 
     - name: 🤖 Run automerge
       id: automerge
-      uses: pascalgn/automerge-action@v0.16.4
+      uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
       env:
         GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
         # Merge configuration
