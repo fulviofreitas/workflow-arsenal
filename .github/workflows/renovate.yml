@@ -27,10 +27,14 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: 🔄 Run Renovate
-        uses: fulviofreitas/workflow-arsenal/.github/actions/renovate@master
+        # Local path (not @master/@sha): the checkout above already holds
+        # this commit's copy of the action, so no self-pin to keep fresh.
+        uses: ./.github/actions/renovate
         with:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
