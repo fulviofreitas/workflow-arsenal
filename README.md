@@ -84,11 +84,24 @@ jobs:
 
 ## 🔒 Versioning & Pinning
 
-| Method | Example |
+Every releasable push to `master` cuts a semver tag (`vX.Y.Z`) and a GitHub release
+([`release.yml`](.github/workflows/release.yml)). `feat` → minor; `fix`, `perf`, `revert`,
+`refactor`, `ci` and `chore(deps)` → patch; breaking changes → major.
+
+**Pin callers to a release tag's commit SHA, with the tag as a comment:**
+
+```yaml
+- uses: fulviofreitas/workflow-arsenal/.github/actions/setup-python@<40-char sha of vX.Y.Z> # vX.Y.Z
+```
+
+| Method | Verdict |
 |:-------|:--------|
-| Pin to `@master` (recommended) | `fulviofreitas/workflow-arsenal/.github/actions/setup-python@master` |
-| Pin to commit SHA (most secure) | `fulviofreitas/workflow-arsenal/.github/actions/setup-python@abc1234` |
-| Pin to release tag (when available) | `fulviofreitas/workflow-arsenal/.github/actions/setup-python@v1` |
+| `@<sha> # vX.Y.Z` | ✅ Recommended. Immutable; Renovate (`helpers:pinGitHubActionDigests`) or Dependabot proposes the bump when a new tag lands. |
+| `@vX.Y.Z` | ⚠️ Tags are mutable — zizmor flags it (`unpinned-uses`). |
+| `@<sha> # master` | ⚠️ Goes stale on every arsenal merge (zizmor `ref-version-mismatch`) until the caller bumps it. |
+| `@master` | ❌ Runs whatever is on master at run time. |
+
+The `@master` refs in the Quick Start above and in the per-action READMEs are illustrative; use a pinned tag in real workflows.
 
 ---
 

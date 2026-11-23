@@ -1,0 +1,59 @@
+{
+  "branches": ["master"],
+  "tagFormat": "v${version}",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "breaking": true, "release": "major" },
+          { "type": "feat", "release": "minor" },
+          { "type": "fix", "release": "patch" },
+          { "type": "perf", "release": "patch" },
+          { "type": "revert", "release": "patch" },
+          { "type": "refactor", "release": "patch" },
+          { "type": "ci", "release": "patch" },
+          { "type": "chore", "scope": "deps", "release": "patch" },
+          { "type": "chore", "scope": "cosign", "release": "patch" },
+          { "type": "docs", "release": false },
+          { "type": "style", "release": false },
+          { "type": "test", "release": false },
+          { "type": "build", "release": false },
+          { "type": "chore", "release": false }
+        ],
+        "parserOpts": { "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES", "BREAKING"] }
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "✨ Features" },
+            { "type": "fix", "section": "🐛 Bug Fixes" },
+            { "type": "perf", "section": "⚡ Performance" },
+            { "type": "revert", "section": "⏪ Reverts" },
+            { "type": "refactor", "section": "♻️ Refactoring" },
+            { "type": "ci", "section": "👷 CI / reusable workflows" },
+            { "type": "chore", "section": "🔧 Dependencies" },
+            { "type": "docs", "section": "📚 Documentation", "hidden": true },
+            { "type": "test", "hidden": true },
+            { "type": "style", "hidden": true },
+            { "type": "build", "hidden": true }
+          ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false,
+        "addReleases": false
+      }
+    ]
+  ]
+}

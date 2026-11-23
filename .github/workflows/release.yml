@@ -1,0 +1,48 @@
+# ============================================================================
+# 🏷️ Release — version tags for workflow-arsenal
+# ============================================================================
+# Cuts a semver tag (vX.Y.Z) and a GitHub release on every releasable push to
+# master, using this repo's own semantic-release action and .releaserc.json.
+#
+# Why: callers pin arsenal by commit SHA. With a "# master" comment the pin
+# goes stale (zizmor ref-version-mismatch) the moment master moves; with a
+# "# vX.Y.Z" comment it stays valid until the caller bumps it, and Renovate
+# proposes the bump when a new tag lands.
+#
+# Tag-only: no CHANGELOG/version commit is pushed back, so the protected
+# master branch is never written to, and GITHUB_TOKEN only needs
+# contents: write (tags + releases). Release notes live on the GitHub release.
+# ============================================================================
+
+name: 🏷️ Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release:
+    name: 🏷️ Semantic Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the vX.Y.Z tag and the GitHub release
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # semantic-release needs full history and tags
+          persist-credentials: false
+
+      - name: 🚀 Semantic Release
+        uses: ./.github/actions/semantic-release
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
