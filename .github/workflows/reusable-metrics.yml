@@ -70,13 +70,18 @@ jobs:
     steps:
       - name: 🔑 Generate GitHub App token
         id: app-token
-        # Not scoped yet: lowlighter/metrics' per-plugin API needs plus the
-        # SVG commit to a ruleset-protected branch have not been validated
-        # with a narrowed token. Follow-up; ignored so pinning can land.
-        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3 # zizmor: ignore[github-app]
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
         with:
           client-id: ${{ secrets.RENOVATE_APP_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # Scoped to the calling repository (the action's default) and to
+          # what lowlighter/metrics uses: read the repo's issues and PRs for
+          # the base/follow-up sections, and commit the SVG (contents). The
+          # commit lands on a ruleset-protected branch through the App's
+          # bypass actor entry, which is per-actor, not per-permission.
+          permission-contents: write
+          permission-issues: read
+          permission-pull-requests: read
 
       - name: 📊 Generate Repository Metrics
         uses: lowlighter/metrics@65836723097537a54cd8eb90f61839426b4266b6 # v3.34
