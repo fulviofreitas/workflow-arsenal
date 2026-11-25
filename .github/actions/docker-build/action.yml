@@ -144,7 +144,7 @@ runs:
         # fallback tag, no .sig tag). Verified 2026-11-20 against ff-k8s Kyverno
         # v1.20.0 ImageValidatingPolicy (ff-k8s docs/operations/image-signing.md).
         # Older Kyverno (<=1.19) cannot read it: re-test before any Kyverno downgrade.
-        cosign-release: 'v3.1.4'
+        cosign-release: 'v3.1.5'
 
     - name: 🔏 Sign image with Cosign (keyless via OIDC)
       if: inputs.push == 'true' && steps.build.outputs.digest != ''
